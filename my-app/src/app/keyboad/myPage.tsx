@@ -1,8 +1,9 @@
 'use client'
-import React, { useState, useCallback } from 'react'
+import React, { useState, useCallback, useRef } from 'react'
 
 export default function KeyBoard() {
   const [value, setValue] = useState('')
+  const textareaRef = useRef<HTMLTextAreaElement>(null)
 
   // 許可される文字のパターン
   const allowedPattern = /^[a-zA-Z0-9\s\.,!?@#$%^&*()_+\-=\[\]{};:'\"\\|<>\/]*$/
@@ -11,16 +12,26 @@ export default function KeyBoard() {
     return input.split('').filter(char => allowedPattern.test(char)).join('')
   }, [])
 
-  const handleInput = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    const input = e.target.value
+  const handleInput = (e: React.FormEvent<HTMLTextAreaElement>) => {
+    const input = e.currentTarget.value
     const filteredInput = filterInput(input)
+    
+    if (filteredInput !== input) {
+      e.preventDefault() // デフォルトの入力を防ぐ
+    }
+
+    // カーソル位置を取得
+    const cursorPosition = e.currentTarget.selectionStart
+
+    // 値を更新
     setValue(filteredInput)
 
     // カーソル位置の調整
-    const cursorPosition = e.target.selectionStart
     if (cursorPosition !== null) {
-      window.requestAnimationFrame(() => {
-        e.target.setSelectionRange(cursorPosition, cursorPosition)
+      requestAnimationFrame(() => {
+        if (textareaRef.current) {
+          textareaRef.current.setSelectionRange(cursorPosition, cursorPosition)
+        }
       })
     }
   }
@@ -32,17 +43,19 @@ export default function KeyBoard() {
         <div className="mb-16">
           <h2 className="text-xl font-bold pb-4">実装要件</h2>
           <ul className="list-disc pl-5 space-y-2">
-            <li>onChangeイベントハンドラー</li>
+            <li>onInputイベントハンドラー</li>
             <li>リアルタイムフィルタリング</li>
             <li>カーソル位置の調整</li>
+            <li>iOS/iPhone対応</li>
           </ul>
         </div>
         
         <div className="mb-16">
           <h2 className="text-xl font-bold pb-4">制限付きテキストエリア</h2>
           <textarea
+            ref={textareaRef}
             value={value}
-            onChange={handleInput}
+            onInput={handleInput}
             placeholder="英語のみ入力可能です"
             className="w-full p-2 border rounded resize-none bg-gray-700 text-white"
             rows={4}
