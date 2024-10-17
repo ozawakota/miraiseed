@@ -17,10 +17,12 @@ export default function KeyBoard() {
   const handleBeforeInput = useCallback((e: React.FormEvent<HTMLTextAreaElement>) => {
     if (isComposing) return // IME入力中は処理をスキップ
 
-    const input = e.currentTarget.value + (e as any).data
-    const filteredInput = filterInput(input)
+    const inputElement = e.target as HTMLTextAreaElement
+    const inputEvent = e.nativeEvent as InputEvent
+    const newInput = inputElement.value + inputEvent.data
+    const filteredInput = filterInput(newInput)
     
-    if (filteredInput !== input) {
+    if (filteredInput !== newInput) {
       e.preventDefault() // デフォルトの入力を防ぐ
     }
   }, [filterInput, isComposing])
@@ -44,7 +46,7 @@ export default function KeyBoard() {
 
   const handleCompositionEnd = useCallback((e: React.CompositionEvent<HTMLTextAreaElement>) => {
     setIsComposing(false)
-    handleInput(e as any)
+    handleInput(e as React.FormEvent<HTMLTextAreaElement>)
   }, [handleInput])
 
   useEffect(() => {
