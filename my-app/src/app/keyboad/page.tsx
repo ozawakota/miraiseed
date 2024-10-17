@@ -1,7 +1,7 @@
 import MyPage from "./myPage"
 
 export const metadata = {
-  title: "テスト日本語入力制御ページ",
+  title: "(v1)テスト日本語入力制御ページ",
   description: "日本語入力制御ページ",
 }
 
