@@ -1,11 +1,9 @@
 'use client'
-import React, { useState, useCallback, useRef, useEffect } from 'react'
+import React, { useState, useCallback, useRef } from 'react'
 
 export default function KeyBoard() {
   const [value, setValue] = useState('')
-  const [isComposing, setIsComposing] = useState(false)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
-  const cursorPositionRef = useRef<number | null>(null)
 
   // 許可される文字のパターン
   const allowedPattern = /^[a-zA-Z0-9\s\.,!?@#$%^&*()_+\-=\[\]{};:'\"\\|<>\/]*$/
@@ -14,48 +12,37 @@ export default function KeyBoard() {
     return input.split('').filter(char => allowedPattern.test(char)).join('')
   }, [])
 
-  const handleBeforeInput = useCallback((e: React.FormEvent<HTMLTextAreaElement>) => {
-    if (isComposing) return // IME入力中は処理をスキップ
-
-    const inputElement = e.target as HTMLTextAreaElement
-    const inputEvent = e.nativeEvent as InputEvent
-    const newInput = inputElement.value + inputEvent.data
-    const filteredInput = filterInput(newInput)
-    
-    if (filteredInput !== newInput) {
-      e.preventDefault() // デフォルトの入力を防ぐ
-    }
-  }, [filterInput, isComposing])
-
   const handleInput = useCallback((e: React.FormEvent<HTMLTextAreaElement>) => {
-    if (isComposing) return // IME入力中は処理をスキップ
-
     const input = e.currentTarget.value
     const filteredInput = filterInput(input)
     
-    // カーソル位置を取得
-    cursorPositionRef.current = e.currentTarget.selectionStart
-
-    // 値を更新
-    setValue(filteredInput)
-  }, [filterInput, isComposing])
-
-  const handleCompositionStart = useCallback(() => {
-    setIsComposing(true)
-  }, [])
-
-  const handleCompositionEnd = useCallback((e: React.CompositionEvent<HTMLTextAreaElement>) => {
-    setIsComposing(false)
-    handleInput(e as React.FormEvent<HTMLTextAreaElement>)
-  }, [handleInput])
-
-  useEffect(() => {
-    // カーソル位置の調整
-    if (cursorPositionRef.current !== null && textareaRef.current) {
-      const cursorPosition = cursorPositionRef.current
+    if (filteredInput !== input) {
+      e.preventDefault()
+      setValue(filteredInput)
+      
+      // カーソル位置の調整
+      const cursorPosition = e.currentTarget.selectionStart
       requestAnimationFrame(() => {
         if (textareaRef.current) {
           textareaRef.current.setSelectionRange(cursorPosition, cursorPosition)
+        }
+      })
+    } else {
+      setValue(input)
+    }
+  }, [filterInput])
+
+  const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === 'Enter') {
+      e.preventDefault()
+      const cursorPosition = e.currentTarget.selectionStart
+      const newValue = value.slice(0, cursorPosition) + '\n' + value.slice(cursorPosition)
+      setValue(newValue)
+      
+      // Enterキーが押されたら、カーソルを右に移動
+      requestAnimationFrame(() => {
+        if (textareaRef.current) {
+          textareaRef.current.setSelectionRange(cursorPosition + 1, cursorPosition + 1)
         }
       })
     }
@@ -68,12 +55,11 @@ export default function KeyBoard() {
         <div className="mb-16">
           <h2 className="text-xl font-bold pb-4">実装要件</h2>
           <ul className="list-disc pl-5 space-y-2">
-            <li>onBeforeInputイベントハンドラー</li>
             <li>onInputイベントハンドラー</li>
             <li>リアルタイムフィルタリング</li>
-            <li>カーソル位置の調整</li>
+            <li>Enterキーでカーソルを右に移動</li>
+            <li>日本語入力の防止</li>
             <li>iOS/iPhone/iPad対応</li>
-            <li>IME入力対応</li>
           </ul>
         </div>
         
@@ -82,14 +68,13 @@ export default function KeyBoard() {
           <textarea
             ref={textareaRef}
             value={value}
-            onBeforeInput={handleBeforeInput}
             onInput={handleInput}
-            onCompositionStart={handleCompositionStart}
-            onCompositionEnd={handleCompositionEnd}
+            onKeyDown={handleKeyDown}
             placeholder="英語のみ入力可能です"
             className="w-full p-2 border rounded resize-none bg-gray-700 text-white"
             rows={4}
             aria-label="英語と記号のみ入力可能なテキストエリア"
+            lang="en"
           />
           <p className="mt-2 text-sm text-gray-300">
             注意：このテキストエリアは英数字と一般的な記号のみ入力可能です。日本語文字は入力できません。
