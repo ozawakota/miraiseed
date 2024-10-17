@@ -1,8 +1,11 @@
 'use client'
-import React, { useState, useCallback } from 'react'
+
+import React, { useState, useCallback, useRef, useEffect } from 'react'
 
 export default function KeyBoard() {
   const [value, setValue] = useState('')
+  const textareaRef = useRef<HTMLTextAreaElement>(null)
+  const [isComposing, setIsComposing] = useState(false)
 
   // 許可される文字のパターン
   const allowedPattern = /^[a-zA-Z0-9\s\.,!?@#$%^&*()_+\-=\[\]{};:'\"\\|<>\/]*$/
@@ -11,19 +14,44 @@ export default function KeyBoard() {
     return input.split('').filter(char => allowedPattern.test(char)).join('')
   }, [])
 
-  const handleInput = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    const input = e.target.value
-    const filteredInput = filterInput(input)
-    setValue(filteredInput)
+  const handleInput = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    if (!isComposing) {
+      const input = e.target.value
+      const filteredInput = filterInput(input)
+      setValue(filteredInput)
 
-    // カーソル位置の調整
-    const cursorPosition = e.target.selectionStart
-    if (cursorPosition !== null) {
-      window.requestAnimationFrame(() => {
-        e.target.setSelectionRange(cursorPosition, cursorPosition)
-      })
+      // カーソル位置の調整
+      const cursorPosition = e.target.selectionStart
+      if (cursorPosition !== null) {
+        window.requestAnimationFrame(() => {
+          e.target.setSelectionRange(cursorPosition, cursorPosition)
+        })
+      }
     }
-  }
+  }, [filterInput, isComposing])
+
+  useEffect(() => {
+    const textarea = textareaRef.current
+    if (textarea) {
+      const handleCompositionStart = () => setIsComposing(true)
+      const handleCompositionEnd = () => {
+        setIsComposing(false)
+        const filteredValue = filterInput(textarea.value)
+        setValue(filteredValue)
+        
+        // Set cursor to the end
+        textarea.setSelectionRange(filteredValue.length, filteredValue.length)
+      }
+
+      textarea.addEventListener('compositionstart', handleCompositionStart)
+      textarea.addEventListener('compositionend', handleCompositionEnd)
+
+      return () => {
+        textarea.removeEventListener('compositionstart', handleCompositionStart)
+        textarea.removeEventListener('compositionend', handleCompositionEnd)
+      }
+    }
+  }, [filterInput])
 
   return (
     <section className="p-4 text-white">
@@ -35,12 +63,14 @@ export default function KeyBoard() {
             <li>onChangeイベントハンドラー</li>
             <li>リアルタイムフィルタリング</li>
             <li>カーソル位置の調整</li>
+            <li>iOS/iPhone対応</li>
           </ul>
         </div>
         
         <div className="mb-16">
           <h2 className="text-xl font-bold pb-4">制限付きテキストエリア</h2>
           <textarea
+            ref={textareaRef}
             value={value}
             onChange={handleInput}
             placeholder="英語のみ入力可能です"
