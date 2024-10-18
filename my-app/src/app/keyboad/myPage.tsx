@@ -1,62 +1,67 @@
 'use client'
-import React, { useState, useCallback, useRef, useEffect } from 'react'
+import React, { useState, useRef, useCallback, useMemo } from 'react';
 
 export default function KeyBoard() {
-  const [value, setValue] = useState('')
-  const textareaRef = useRef<HTMLTextAreaElement>(null)
+  const [value, setValue] = useState('');
+  const [composingValue, setComposingValue] = useState('');
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const [isComposing, setIsComposing] = useState(false);
 
-  // 許可される文字のパターン
-  const allowedPattern = /^[a-zA-Z0-9\s\.,!?@#$%^&*()_+\-=\[\]{};:'\"\\|<>\/]*$/
+  const filterInput = useMemo(() => (input: string) => {
+    return input.replace(/[^a-zA-Z0-9\s]/g, '');
+  }, []);
 
-  const filterInput = useCallback((input: string) => {
-    return input.split('').filter(char => allowedPattern.test(char)).join('')
-  }, [])
+  const handleChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    if (isComposing) {
+      setComposingValue(e.target.value);
+    } else {
+      const filteredInput = filterInput(e.target.value);
+      setValue(filteredInput);
+
+      // カーソル位置を保持
+      const cursorPos = e.target.selectionStart;
+      setTimeout(() => {
+        if (textareaRef.current) {
+          textareaRef.current.setSelectionRange(cursorPos, cursorPos);
+        }
+      }, 0);
+    }
+  }, [isComposing, filterInput]);
 
   const handleInput = useCallback((e: React.FormEvent<HTMLTextAreaElement>) => {
-    e.preventDefault()
-    const input = e.currentTarget.value
-    const filteredInput = filterInput(input)
-    
-    if (filteredInput !== input) {
-      const cursorPosition = e.currentTarget.selectionStart || 0
-      const diff = input.length - filteredInput.length
-      setValue(filteredInput)
-
-      // カーソル位置の調整
-      requestAnimationFrame(() => {
-        if (textareaRef.current) {
-          const newPosition = Math.max(0, cursorPosition - diff)
-          textareaRef.current.setSelectionRange(newPosition, newPosition)
-        }
-      })
-    } else {
-      setValue(filteredInput)
+    if (isComposing) {
+      setComposingValue(e.currentTarget.value);
     }
-  }, [filterInput])
+  }, [isComposing]);
 
   const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter') {
-      e.preventDefault()
-      const cursorPosition = e.currentTarget.selectionStart || 0
-      const newValue = value.slice(0, cursorPosition) + '\n' + value.slice(cursorPosition)
-      setValue(newValue)
-      
-      // Enterキーが押されたら、カーソルを右に移動
-      requestAnimationFrame(() => {
-        if (textareaRef.current) {
-          textareaRef.current.setSelectionRange(cursorPosition + 1, cursorPosition + 1)
-        }
-      })
+      e.preventDefault();
+      if (textareaRef.current) {
+        const cursorPos = textareaRef.current.selectionStart;
+        const newValue = value.slice(0, cursorPos) + '\n' + value.slice(cursorPos);
+        setValue(newValue);
+        setTimeout(() => {
+          if (textareaRef.current) {
+            textareaRef.current.setSelectionRange(cursorPos + 1, cursorPos + 1);
+          }
+        }, 0);
+      }
     }
-  }, [value])
+  }, [value]);
 
-  useEffect(() => {
+  const handleCompositionStart = useCallback(() => {
+    setIsComposing(true);
+  }, []);
+
+  const handleCompositionEnd = useCallback(() => {
+    setIsComposing(false);
     if (textareaRef.current) {
-      const cursorPosition = textareaRef.current.selectionStart
-      textareaRef.current.value = value
-      textareaRef.current.setSelectionRange(cursorPosition, cursorPosition)
+      const filteredInput = filterInput(textareaRef.current.value);
+      setValue(filteredInput);
+      setComposingValue('');
     }
-  }, [value])
+  }, [filterInput]);
 
   return (
     <section className="p-4 text-white">
@@ -69,6 +74,7 @@ export default function KeyBoard() {
             <li>リアルタイムフィルタリング</li>
             <li>Enterキーでカーソルを右に移動</li>
             <li>日本語入力の防止</li>
+            <li>ローマ字入力の防止</li>
             <li>iOS/iPhone/iPad対応</li>
           </ul>
         </div>
@@ -77,8 +83,12 @@ export default function KeyBoard() {
           <h2 className="text-xl font-bold pb-4">制限付きテキストエリア</h2>
           <textarea
             ref={textareaRef}
+            value={isComposing ? composingValue : value}
+            onChange={handleChange}
             onInput={handleInput}
             onKeyDown={handleKeyDown}
+            onCompositionStart={handleCompositionStart}
+            onCompositionEnd={handleCompositionEnd}
             placeholder="英語のみ入力可能です"
             className="w-full p-2 border rounded resize-none bg-gray-700 text-white"
             rows={4}
