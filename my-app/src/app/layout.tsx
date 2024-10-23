@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import localFont from "next/font/local";
+import Header from "./_shared/components/organisms/header"
 import "./globals.css";
 
 const geistSans = localFont({
@@ -24,11 +25,20 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="ja">
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        {children}
+        <div>
+          <Header />
+          <main className="md:py-[60px] py-[30px] bg-gradient-animation">
+            <div className="c-container">
+              {children}
+            </div>
+          </main>
+        
+
+        </div>
       </body>
     </html>
   );
