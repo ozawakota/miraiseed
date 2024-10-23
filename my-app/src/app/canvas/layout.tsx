@@ -2,7 +2,7 @@ import type { ReactNode } from 'react';
 import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
-  title: 'canvas',
+  title: 'キャンバス保存',
 };
 
 export default function Layout({ children }: { children: ReactNode }) {

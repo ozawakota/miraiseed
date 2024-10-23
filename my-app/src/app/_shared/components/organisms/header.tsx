@@ -28,7 +28,7 @@ export default function Header() {
               <Link
                 href={{
                   pathname: '/canvas',
-                  query: { name: 'canvas' },
+                  query: { deliveryId: 'R40ST012938', userId: '14357' },
                 }}
               >
               キャンバス保存
