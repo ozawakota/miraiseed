@@ -149,6 +149,10 @@ export default function DrawingApp() {
   const redo = () => {
     if (redoHistory.length === 0) return
 
+    console.log('====================================');
+    console.log(redoHistory,"redoHistory");
+    console.log('====================================');
+    
     const nextAction = redoHistory[redoHistory.length - 1] // redoHistoryの最後の要素（最後にundoしたアクション）を取得
     setDrawHistory(prev => [...prev, nextAction]) // 取得したアクションを描画履歴（drawHistory）の末尾に追加
     setRedoHistory(prev => prev.slice(0, -1)) // アクションが描画履歴に戻されたため、redoHistoryから最後の要素を削除

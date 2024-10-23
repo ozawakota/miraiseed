@@ -1,17 +1,9 @@
 'use client';
 
 
-import React, { useState, useRef, useCallback, useMemo } from 'react';
-import CodeBlock from './components/CodeBlock'
 import DrawingApp from './components/organisms/DrawingApp'
 
 export default function CanvasPage() {
-  const sampleCode = `
-    function helloWorld() {
-      console.log("Hello, World!");
-    }
-  `.trim()
-
 
   return(
     <section className="p-4">
@@ -42,10 +34,6 @@ export default function CanvasPage() {
           <h2 className="text-xl font-bold pb-4">ロジック</h2>
           <p>キー / バリュー</p>
           <div>
-            <CodeBlock
-              language="javascript"
-              code={sampleCode}
-            />
           </div>
           <ul className='mt-4 mb-6'>
             <li>canvasをindexdDBに保存し、ダウンロードドボタンを押すとFormData APIを使用して、PCに保存できる</li>
