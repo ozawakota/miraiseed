@@ -9,8 +9,8 @@ import { useCanvasIndexedDB, DrawAction } from '../../hooks/useCanvasIndexedDB'
 export default function DrawingApp() {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const [isDrawing, setIsDrawing] = useState(false)
-  const [drawHistory, setDrawHistory] = useState<DrawAction[]>([])
-  const [redoHistory, setRedoHistory] = useState<DrawAction[]>([])
+  const [drawHistory, setDrawHistory] = useState<DrawAction>({ answers: { canvas: { paths: [] } } })
+  const [redoHistory, setRedoHistory] = useState<Array<{ points: Array<{ x: number; y: number }> }>>([])
   const [currentPath, setCurrentPath] = useState<{ x: number; y: number }[]>([])
 
   const searchParams = useSearchParams()
@@ -22,7 +22,9 @@ export default function DrawingApp() {
   useEffect(() => {
     const loadPaths = async () => {
       const storedPaths = await getAllPaths()
-      setDrawHistory(storedPaths)
+      setDrawHistory(storedPaths.answers && storedPaths.answers.canvas && Array.isArray(storedPaths.answers.canvas.paths)
+        ? storedPaths
+        : { answers: { canvas: { paths: [] } } })
     }
     loadPaths()
   }, [getAllPaths, deliveryId, userId])
@@ -41,17 +43,22 @@ export default function DrawingApp() {
     context.lineJoin = 'round'
     context.lineWidth = 2
 
-    drawHistory.forEach(action => {
-      context.beginPath()
-      action.path.forEach((point, index) => {
-        if (index === 0) {
-          context.moveTo(point.x, point.y)
-        } else {
-          context.lineTo(point.x, point.y)
+    const paths = drawHistory.answers.canvas.paths
+    if (Array.isArray(paths)) {
+      paths.forEach(path => {
+        if (path && path.points) {
+          context.beginPath()
+          path.points.forEach((point, index) => {
+            if (index === 0) {
+              context.moveTo(point.x, point.y)
+            } else {
+              context.lineTo(point.x, point.y)
+            }
+          })
+          context.stroke()
         }
       })
-      context.stroke()
-    })
+    }
   }, [drawHistory])
 
   useEffect(() => {
@@ -98,10 +105,19 @@ export default function DrawingApp() {
 
   const stopDrawing = async () => {
     if (currentPath.length > 1) {
-      const newAction = { path: currentPath }
-      setDrawHistory(prev => [...prev, newAction])
+      const newPath = { points: currentPath }
+      setDrawHistory(prev => ({
+        ...prev,
+        answers: {
+          ...prev.answers,
+          canvas: {
+            ...prev.answers.canvas,
+            paths: [...prev.answers.canvas.paths, newPath]
+          }
+        }
+      }))
       setRedoHistory([])
-      await savePath(newAction)
+      await savePath(newPath)
     }
     setCurrentPath([])
     setIsDrawing(false)
@@ -115,19 +131,29 @@ export default function DrawingApp() {
     if (!context) return
 
     context.clearRect(0, 0, canvas.width, canvas.height)
-    setDrawHistory([])
+    setDrawHistory({ answers: { canvas: { paths: [] } } })
     setRedoHistory([])
     await clearAllPaths()
   }
 
   const undo = async () => {
-    if (drawHistory.length === 0) return
+    if (drawHistory.answers.canvas.paths.length === 0) return
 
-    const lastAction = drawHistory[drawHistory.length - 1]
-    setRedoHistory(prev => [...prev, lastAction])
+    const lastPath = drawHistory.answers.canvas.paths[drawHistory.answers.canvas.paths.length - 1]
+    setRedoHistory(prev => [...prev, lastPath])
     setDrawHistory(prev => {
-      const newHistory = prev.slice(0, -1)
-      updatePaths(newHistory)
+      const newPaths = prev.answers.canvas.paths.slice(0, -1)
+      const newHistory = {
+        ...prev,
+        answers: {
+          ...prev.answers,
+          canvas: {
+            ...prev.answers.canvas,
+            paths: newPaths
+          }
+        }
+      }
+      updatePaths(newPaths)
       return newHistory
     })
   }
@@ -135,10 +161,20 @@ export default function DrawingApp() {
   const redo = async () => {
     if (redoHistory.length === 0) return
     
-    const nextAction = redoHistory[redoHistory.length - 1]
+    const nextPath = redoHistory[redoHistory.length - 1]
     setDrawHistory(prev => {
-      const newHistory = [...prev, nextAction]
-      updatePaths(newHistory)
+      const newPaths = [...prev.answers.canvas.paths, nextPath]
+      const newHistory = {
+        ...prev,
+        answers: {
+          ...prev.answers,
+          canvas: {
+            ...prev.answers.canvas,
+            paths: newPaths
+          }
+        }
+      }
+      updatePaths(newPaths)
       return newHistory
     })
     setRedoHistory(prev => prev.slice(0, -1))
@@ -158,7 +194,7 @@ export default function DrawingApp() {
       />
       <div className="flex items-center justify-between w-full max-w-md">
         <div className="flex items-center space-x-2">
-          <Button onClick={undo} disabled={drawHistory.length === 0}>
+          <Button onClick={undo} disabled={drawHistory.answers.canvas.paths.length === 0}>
             <Undo className="w-4 h-4 mr-2" />
             元に戻す
           </Button>

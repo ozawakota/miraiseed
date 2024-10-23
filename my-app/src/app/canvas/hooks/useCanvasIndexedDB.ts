@@ -3,23 +3,36 @@
 import { useState, useEffect, useCallback } from 'react';
 
 export type DrawAction = {
-  path: { x: number; y: number }[];
+  answers: {
+    canvas: {
+      paths: Array<{
+        points: Array<{ x: number; y: number }>;
+      }>;
+    };
+  };
 };
 
 export function useCanvasIndexedDB(deliveryId: string, userId: string) {
   const [db, setDb] = useState<IDBDatabase | null>(null);
   const dbName = `exam-canvas-db-${deliveryId}-${userId}`;
+  const storeName = `exam-canvas-store-${deliveryId}`;
 
   useEffect(() => {
     const openDB = () => {
-      const request = indexedDB.open(dbName, 1);
+      const request = indexedDB.open(dbName, 2);
 
       request.onerror = () => console.error("Error opening database");
       request.onsuccess = () => setDb(request.result);
 
       request.onupgradeneeded = (event) => {
         const db = (event.target as IDBOpenDBRequest).result;
-        db.createObjectStore('paths', { autoIncrement: true });
+
+        if (event.oldVersion < 2) {
+          if (db.objectStoreNames.contains(storeName)) {
+            db.deleteObjectStore(storeName);
+          }
+          db.createObjectStore(storeName, { autoIncrement: true });
+        }
       };
     };
 
@@ -28,53 +41,66 @@ export function useCanvasIndexedDB(deliveryId: string, userId: string) {
     return () => {
       if (db) db.close();
     };
-  }, [dbName]);
+  }, [dbName, storeName, db]);
 
-  const savePath = useCallback(async (path: DrawAction) => {
+  const savePath = useCallback(async (newPath: { points: Array<{ x: number; y: number }> }) => {
     if (!db) return;
 
     return new Promise<void>((resolve, reject) => {
-      const transaction = db.transaction(['paths'], 'readwrite');
-      const store = transaction.objectStore('paths');
-      const request = store.add(path);
+      const transaction = db.transaction([storeName], 'readwrite');
+      const store = transaction.objectStore(storeName);
+      const getRequest = store.get(1); // Assuming we're always using key 1 for the DrawAction
 
-      request.onerror = () => reject(new Error('Failed to save path'));
-      request.onsuccess = () => resolve();
+      getRequest.onerror = () => reject(new Error('Failed to get existing paths'));
+      getRequest.onsuccess = () => {
+        const existingData: DrawAction = getRequest.result || { answers: { canvas: { paths: [] } } };
+        existingData.answers.canvas.paths.push(newPath);
+
+        const putRequest = store.put(existingData, 1);
+        putRequest.onerror = () => reject(new Error('Failed to save path'));
+        putRequest.onsuccess = () => resolve();
+      };
     });
-  }, [db]);
+  }, [db, storeName]);
 
-  const getAllPaths = useCallback(async (): Promise<DrawAction[]> => {
-    if (!db) return [];
+  const getAllPaths = useCallback(async (): Promise<DrawAction> => {
+    if (!db) return { answers: { canvas: { paths: [] } } };
 
     return new Promise((resolve, reject) => {
-      const transaction = db.transaction(['paths'], 'readonly');
-      const store = transaction.objectStore('paths');
-      const request = store.getAll();
+      const transaction = db.transaction([storeName], 'readonly');
+      const store = transaction.objectStore(storeName);
+      const request = store.get(1); // Assuming we're always using key 1 for the DrawAction
 
       request.onerror = () => reject(new Error('Failed to get paths'));
-      request.onsuccess = () => resolve(request.result);
+      request.onsuccess = () => resolve(request.result || { answers: { canvas: { paths: [] } } });
     });
-  }, [db]);
+  }, [db, storeName]);
 
   const clearAllPaths = useCallback(async () => {
     if (!db) return;
 
     return new Promise<void>((resolve, reject) => {
-      const transaction = db.transaction(['paths'], 'readwrite');
-      const store = transaction.objectStore('paths');
-      const request = store.clear();
+      const transaction = db.transaction([storeName], 'readwrite');
+      const store = transaction.objectStore(storeName);
+      const request = store.put({ answers: { canvas: { paths: [] } } }, 1);
 
       request.onerror = () => reject(new Error('Failed to clear paths'));
       request.onsuccess = () => resolve();
     });
-  }, [db]);
+  }, [db, storeName]);
 
-  const updatePaths = useCallback(async (paths: DrawAction[]) => {
-    await clearAllPaths();
-    for (const path of paths) {
-      await savePath(path);
-    }
-  }, [clearAllPaths, savePath]);
+  const updatePaths = useCallback(async (paths: Array<{ points: Array<{ x: number; y: number }> }>) => {
+    if (!db) return;
+
+    return new Promise<void>((resolve, reject) => {
+      const transaction = db.transaction([storeName], 'readwrite');
+      const store = transaction.objectStore(storeName);
+      const request = store.put({ answers: { canvas: { paths } } }, 1);
+
+      request.onerror = () => reject(new Error('Failed to update paths'));
+      request.onsuccess = () => resolve();
+    });
+  }, [db, storeName]);
 
   return { savePath, getAllPaths, clearAllPaths, updatePaths };
 }
