@@ -1,21 +1,11 @@
 "use client"
 
 import { useRef, useEffect, useState, useCallback } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { Button } from "@/components/ui/button"
 import { Undo, Redo, Trash2 } from 'lucide-react'
+import { useCanvasIndexedDB, DrawAction } from '../../hooks/useCanvasIndexedDB'
 
-/**
- * 描画アクションを表す型
- */
-type DrawAction = {
-  path: { x: number; y: number }[];
-}
-
-/**
- * 描画アプリケーションのメインコンポーネント
- * キャンバス上で描画を行い、undo/redo機能を提供します
- * @returns {JSX.Element} 描画アプリケーションのUI
- */
 export default function DrawingApp() {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const [isDrawing, setIsDrawing] = useState(false)
@@ -23,9 +13,20 @@ export default function DrawingApp() {
   const [redoHistory, setRedoHistory] = useState<DrawAction[]>([])
   const [currentPath, setCurrentPath] = useState<{ x: number; y: number }[]>([])
 
-  /**
-   * キャンバスに全ての描画履歴を再描画する関数
-   */
+  const searchParams = useSearchParams()
+  const deliveryId = searchParams.get('deliveryId') || 'default'
+  const userId = searchParams.get('userId') || 'default'
+
+  const { savePath, getAllPaths, clearAllPaths, updatePaths } = useCanvasIndexedDB(deliveryId, userId)
+
+  useEffect(() => {
+    const loadPaths = async () => {
+      const storedPaths = await getAllPaths()
+      setDrawHistory(storedPaths)
+    }
+    loadPaths()
+  }, [getAllPaths, deliveryId, userId])
+
   const drawCanvas = useCallback(() => {
     const canvas = canvasRef.current
     if (!canvas) return
@@ -40,7 +41,6 @@ export default function DrawingApp() {
     context.lineJoin = 'round'
     context.lineWidth = 2
 
-    // 全てのパスを再描画
     drawHistory.forEach(action => {
       context.beginPath()
       action.path.forEach((point, index) => {
@@ -58,10 +58,6 @@ export default function DrawingApp() {
     drawCanvas()
   }, [drawCanvas])
 
-  /**
-   * 描画開始時の処理
-   * @param {React.MouseEvent<HTMLCanvasElement>} e - マウスイベント
-   */
   const startDrawing = (e: React.MouseEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current
     if (!canvas) return
@@ -74,11 +70,7 @@ export default function DrawingApp() {
     setIsDrawing(true)
   }
 
-  /**
-   * 描画中の処理
-   * @param {React.MouseEvent<HTMLCanvasElement>} e - マウスイベント
-   */
-  const draw = (e: React.MouseEvent<HTMLCanvasElement>) => {
+  const draw = async (e: React.MouseEvent<HTMLCanvasElement>) => {
     if (!isDrawing) return
 
     const canvas = canvasRef.current
@@ -104,22 +96,18 @@ export default function DrawingApp() {
     })
   }
 
-  /**
-   * 描画終了時の処理
-   */
-  const stopDrawing = () => {
+  const stopDrawing = async () => {
     if (currentPath.length > 1) {
-      setDrawHistory(prev => [...prev, { path: currentPath }])
+      const newAction = { path: currentPath }
+      setDrawHistory(prev => [...prev, newAction])
       setRedoHistory([])
+      await savePath(newAction)
     }
     setCurrentPath([])
     setIsDrawing(false)
   }
 
-  /**
-   * キャンバスをクリアする処理
-   */
-  const clearCanvas = () => {
+  const clearCanvas = async () => {
     const canvas = canvasRef.current
     if (!canvas) return
 
@@ -129,34 +117,31 @@ export default function DrawingApp() {
     context.clearRect(0, 0, canvas.width, canvas.height)
     setDrawHistory([])
     setRedoHistory([])
+    await clearAllPaths()
   }
 
-  /**
-   * 直前の描画をundoする処理
-   */
-  const undo = () => {
+  const undo = async () => {
     if (drawHistory.length === 0) return
 
     const lastAction = drawHistory[drawHistory.length - 1]
     setRedoHistory(prev => [...prev, lastAction])
-    setDrawHistory(prev => prev.slice(0, -1))
-    drawCanvas()
+    setDrawHistory(prev => {
+      const newHistory = prev.slice(0, -1)
+      updatePaths(newHistory)
+      return newHistory
+    })
   }
 
-  /**
-   * 直前のundoをredoする処理
-   */
-  const redo = () => {
+  const redo = async () => {
     if (redoHistory.length === 0) return
-
-    console.log('====================================');
-    console.log(redoHistory,"redoHistory");
-    console.log('====================================');
     
-    const nextAction = redoHistory[redoHistory.length - 1] // redoHistoryの最後の要素（最後にundoしたアクション）を取得
-    setDrawHistory(prev => [...prev, nextAction]) // 取得したアクションを描画履歴（drawHistory）の末尾に追加
-    setRedoHistory(prev => prev.slice(0, -1)) // アクションが描画履歴に戻されたため、redoHistoryから最後の要素を削除
-    drawCanvas()
+    const nextAction = redoHistory[redoHistory.length - 1]
+    setDrawHistory(prev => {
+      const newHistory = [...prev, nextAction]
+      updatePaths(newHistory)
+      return newHistory
+    })
+    setRedoHistory(prev => prev.slice(0, -1))
   }
 
   return (
