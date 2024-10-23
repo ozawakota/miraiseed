@@ -47,19 +47,33 @@ export default function DrawingApp() {
     if (Array.isArray(paths)) {
       paths.forEach(path => {
         if (path && path.points) {
-          context.beginPath()
-          path.points.forEach((point, index) => {
-            if (index === 0) {
-              context.moveTo(point.x, point.y)
-            } else {
-              context.lineTo(point.x, point.y)
-            }
-          })
-          context.stroke()
+          drawSmoothPath(context, path.points)
         }
       })
     }
   }, [drawHistory])
+
+  const drawSmoothPath = (context: CanvasRenderingContext2D, points: Array<{ x: number; y: number }>) => {
+    if (points.length < 2) return
+
+    context.beginPath()
+    context.moveTo(points[0].x, points[0].y)
+
+    for (let i = 1; i < points.length - 2; i++) {
+      const xc = (points[i].x + points[i + 1].x) / 2
+      const yc = (points[i].y + points[i + 1].y) / 2
+      context.quadraticCurveTo(points[i].x, points[i].y, xc, yc)
+    }
+
+    context.quadraticCurveTo(
+      points[points.length - 2].x,
+      points[points.length - 2].y,
+      points[points.length - 1].x,
+      points[points.length - 1].y
+    )
+
+    context.stroke()
+  }
 
   useEffect(() => {
     drawCanvas()
@@ -93,11 +107,11 @@ export default function DrawingApp() {
     setCurrentPath(prev => {
       const newPath = [...prev, { x, y }]
       
-      context.strokeStyle = 'black'
-      context.beginPath()
-      context.moveTo(prev[prev.length - 1].x, prev[prev.length - 1].y)
-      context.lineTo(x, y)
-      context.stroke()
+      if (newPath.length > 1) {
+        context.clearRect(0, 0, canvas.width, canvas.height)
+        drawCanvas()
+        drawSmoothPath(context, newPath)
+      }
 
       return newPath
     })
