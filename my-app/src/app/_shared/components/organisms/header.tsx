@@ -34,6 +34,15 @@ export default function Header() {
               キャンバス保存
             </Link>
           </li>
+          <li>
+              <Link
+                href={{
+                  pathname: '/canvas-ichiran',
+                }}
+              >
+              キャンバス一覧
+            </Link>
+          </li>
 
         </ul>
       </nav>
