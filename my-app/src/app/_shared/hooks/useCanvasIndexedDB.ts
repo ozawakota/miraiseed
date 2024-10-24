@@ -4,7 +4,8 @@ import { useState, useEffect, useCallback } from 'react';
 
 export type DrawAction = {
   answers: {
-    userid: string,
+    userId: string,
+    deliveryId: string,
     canvas: {
       paths: Array<{
         points: Array<{ x: number; y: number }>;
@@ -20,7 +21,7 @@ export function useCanvasIndexedDB(deliveryId: string, userId: string) {
 
   useEffect(() => {
     const openDB = () => {
-      const request = indexedDB.open(dbName, 3);
+      const request = indexedDB.open(dbName, 4);
 
       request.onerror = () => console.error("Error opening database");
       request.onsuccess = () => setDb(request.result);
@@ -54,7 +55,7 @@ export function useCanvasIndexedDB(deliveryId: string, userId: string) {
 
       getRequest.onerror = () => reject(new Error('Failed to get existing paths'));
       getRequest.onsuccess = () => {
-        const existingData: DrawAction = getRequest.result || { answers: { userid: `${userId}` ,canvas: { paths: [] } } };
+        const existingData: DrawAction = getRequest.result || { answers: { deliveryId: `${deliveryId}` , userId: `${userId}` , canvas: { paths: [] } } };
         existingData.answers.canvas.paths.push(newPath);
 
         const putRequest = store.put(existingData, 1);
@@ -65,7 +66,7 @@ export function useCanvasIndexedDB(deliveryId: string, userId: string) {
   }, [db, storeName]);
 
   const getAllPaths = useCallback(async (): Promise<DrawAction> => {
-    if (!db) return { answers: { userid: `${userId}`,canvas: { paths: [] } } };
+    if (!db) return { answers: { deliveryId: `${deliveryId}` , userId: `${userId}`, canvas: { paths: [] } } };
 
     return new Promise((resolve, reject) => {
       const transaction = db.transaction([storeName], 'readonly');
@@ -73,7 +74,7 @@ export function useCanvasIndexedDB(deliveryId: string, userId: string) {
       const request = store.get(1); // Assuming we're always using key 1 for the DrawAction
 
       request.onerror = () => reject(new Error('Failed to get paths'));
-      request.onsuccess = () => resolve(request.result || { answers: { userid: `${userId}`,canvas: { paths: [] } } });
+      request.onsuccess = () => resolve(request.result || { answers: { deliveryId: `${deliveryId}` , userId: `${userId}`, canvas: { paths: [] } } });
     });
   }, [db, storeName]);
 
@@ -83,7 +84,7 @@ export function useCanvasIndexedDB(deliveryId: string, userId: string) {
     return new Promise<void>((resolve, reject) => {
       const transaction = db.transaction([storeName], 'readwrite');
       const store = transaction.objectStore(storeName);
-      const request = store.put({ answers: { userid: `${userId}`,canvas: { paths: [] } } }, 1);
+      const request = store.put({ answers: { deliveryId: `${deliveryId}` , userId: `${userId}`, canvas: { paths: [] } } }, 1);
 
       request.onerror = () => reject(new Error('Failed to clear paths'));
       request.onsuccess = () => resolve();
@@ -96,7 +97,7 @@ export function useCanvasIndexedDB(deliveryId: string, userId: string) {
     return new Promise<void>((resolve, reject) => {
       const transaction = db.transaction([storeName], 'readwrite');
       const store = transaction.objectStore(storeName);
-      const request = store.put({ answers: { userid: `${userId}`, canvas: { paths } } }, 1);
+      const request = store.put({ answers: { deliveryId: `${deliveryId}` , userId: `${userId}`, canvas: { paths } } }, 1);
 
       request.onerror = () => reject(new Error('Failed to update paths'));
       request.onsuccess = () => resolve();
