@@ -7,7 +7,7 @@ import { useState, useEffect, useCallback } from 'react';
  * @typedef {Object} DrawAction
  * @property {Object} answers
  * @property {string} answers.userId - ユーザーID
- * @property {string} answers.deliveryId - 配達ID
+ * @property {string} answers.deliveryId - 配信ID
  * @property {Object} answers.canvas - キャンバスデータ
  * @property {Array<{points: Array<{x: number, y: number}>}>} answers.canvas.paths - 描画パス
  */
@@ -25,7 +25,7 @@ export type DrawAction = {
 
 /**
  * IndexedDBを使用してキャンバスデータを管理するカスタムフック
- * @param {string} deliveryId - 配達ID
+ * @param {string} deliveryId - 配信ID
  * @param {string} userId - ユーザーID
  * @returns {Object} - データベース操作用の関数群
  */
