@@ -1,7 +1,7 @@
 'use client';
 
 
-import DrawingApp from './components/organisms/DrawingApp'
+import Drawing from './components/organisms/Drawing'
 
 export default function CanvasPage() {
 
@@ -21,7 +21,7 @@ export default function CanvasPage() {
             </ul>
           </div>
           <div>
-            <DrawingApp />
+            <Drawing />
           </div>
         </div>
         <div className="mb-16">

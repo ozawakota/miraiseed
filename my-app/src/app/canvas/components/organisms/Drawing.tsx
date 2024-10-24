@@ -4,9 +4,9 @@ import { useRef, useEffect, useState, useCallback } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { Button } from "@/components/ui/button"
 import { Undo, Redo, Trash2 } from 'lucide-react'
-import { useCanvasIndexedDB, DrawAction } from '../../hooks/useCanvasIndexedDB'
+import { useCanvasIndexedDB, DrawAction } from '../../../_shared/hooks/useCanvasIndexedDB'
 
-export default function DrawingApp() {
+export default function Drawing() {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const [isDrawing, setIsDrawing] = useState(false)
   const [drawHistory, setDrawHistory] = useState<DrawAction>({ answers: { canvas: { paths: [] } } })
