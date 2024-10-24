@@ -8,13 +8,13 @@ export function useGetCanvasIndexedDB() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [storeContents, setStoreContents] = useState<{ [dbName: string]: StoreContent }>({});
-
+  const TARGET_DB = 'exam-canvas-db' // 取得する対象のDB(DB名にexam-canvas-dbが含まれている)
   const fetchDatabases = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
       const dbList = await indexedDB.databases();
-      const filteredDBs = dbList.filter(db => db.name && db.name.includes('exam-canvas-db'));
+      const filteredDBs = dbList.filter(db => db.name && db.name.includes(TARGET_DB));
       
       const dbInfoPromises = filteredDBs.map(async (db) => {
         if (!db.name) return null;
