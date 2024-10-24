@@ -15,7 +15,7 @@ export type DrawAction = {
 export function useCanvasIndexedDB(deliveryId: string, userId: string) {
   const [db, setDb] = useState<IDBDatabase | null>(null);
   const dbName = `exam-canvas-db-${deliveryId}-${userId}`;
-  const storeName = `exam-canvas-store-${deliveryId}`;
+  const storeName = `exam-canvas-store-${deliveryId}-${userId}`;
 
   useEffect(() => {
     const openDB = () => {
