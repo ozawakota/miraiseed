@@ -4,7 +4,7 @@ import { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import { Button } from "@/components/ui/button"
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
 import { useGetCanvasIndexedDB } from '../_shared/hooks/useGetCanvasIndexedDB';
-import { Image } from 'lucide-react';
+
 
 type GroupedDatabases = {
   [userId: string]: {
@@ -78,16 +78,25 @@ export default function CanvasIchiranPage() {
         throw new Error('Canvas element not found');
       }
 
-      // Set canvas size (you might want to adjust this based on your needs)
+      // Set canvas size
       canvasRef.current.width = 200;
       canvasRef.current.height = 200;
 
       const ctx = canvasRef.current.getContext('2d');
       if (ctx) {
         ctx.scale(0.5, 0.5);
+        
+        if (!canvasData.paths || canvasData.paths.length === 0) {
+          // Display "答えなし" when there are no paths
+          ctx.fillStyle = 'black';
+          ctx.font = '24px Arial';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText('答えなし', 200, 200);
+        } else {
+          drawPathsOnCanvas(canvasRef.current, canvasData.paths);
+        }
       }
-
-      drawPathsOnCanvas(canvasRef.current, canvasData.paths);
 
       const imageDataUrl = canvasRef.current.toDataURL('image/png');
       setGeneratedImages(prev => ({ ...prev, [dbName]: imageDataUrl }));
@@ -122,32 +131,24 @@ export default function CanvasIchiranPage() {
         
         <Button onClick={fetchDatabases} className="mb-4">データベース情報を更新</Button>
 
-        {loading && <p>読み込み中...</p>}
+        {loading && <p className='mb-4'>読み込み中...</p>}
         {error && <p className="text-red-500">{error}</p>}
 
         {Object.entries(groupedDatabases).map(([userId, userDatabases]) => (
           <div key={userId} className="mb-8">
             <h2 className="text-xl font-semibold mb-4">ユーザーID: {userId}</h2>
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               {userDatabases.map((db) => (
                 db.name && (
-                  <div key={db.name} className="border rounded-lg p-4">
-                    <h3 className="text-lg font-semibold mb-2">{db.name}</h3>
+                  <div key={db.name} className="border rounded-lg p-4 bg-gray-200">
+                    <h3 className="text-2 font-semibold mb-2">{db.name}</h3>
                     {generatedImages[db.name] ? (
-                      <img src={generatedImages[db.name]} alt={`Generated Canvas for ${db.name}`} className="w-full border border-gray-300" />
+                      <img src={generatedImages[db.name]} alt={`Generated Canvas for ${db.name}`} className="w-full border border-gray-300 bg-white" />
                     ) : (
                       <div className="w-full h-48 flex items-center justify-center bg-gray-100">
-                        {generatingImages[db.name] ? '生成中...' : '画像なし'}
+                        {generatingImages[db.name] ? '生成中...' : '答えなし'}
                       </div>
                     )}
-                    <Button 
-                      onClick={() => handleGenerateImage(db.name)} 
-                      disabled={generatingImages[db.name]}
-                      className="mt-2"
-                    >
-                      <Image className="mr-2 h-4 w-4" />
-                      {generatingImages[db.name] ? '生成中...' : '画像を再生成'}
-                    </Button>
                   </div>
                 )
               ))}
