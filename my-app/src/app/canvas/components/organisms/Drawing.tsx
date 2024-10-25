@@ -9,7 +9,7 @@ import { useCanvasIndexedDB, DrawAction } from '../../../_shared/hooks/useCanvas
 export default function Drawing() {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const [isDrawing, setIsDrawing] = useState(false)
-  const [drawHistory, setDrawHistory] = useState<DrawAction>({ answers: { canvas: { paths: [] } } })
+  const [drawHistory, setDrawHistory] = useState<DrawAction>()
   const [redoHistory, setRedoHistory] = useState<Array<{ points: Array<{ x: number; y: number }> }>>([])
   const [currentPath, setCurrentPath] = useState<{ x: number; y: number }[]>([])
 
@@ -24,7 +24,13 @@ export default function Drawing() {
       const storedPaths = await getAllPaths()
       setDrawHistory(storedPaths.answers && storedPaths.answers.canvas && Array.isArray(storedPaths.answers.canvas.paths)
         ? storedPaths
-        : { answers: { canvas: { paths: [] } } })
+        : { 
+          answers: { 
+            userId,
+            deliveryId,
+            canvas: { paths: [] } 
+          } 
+        } as DrawAction)
     }
     loadPaths()
   }, [getAllPaths, deliveryId, userId])
@@ -43,7 +49,7 @@ export default function Drawing() {
     context.lineJoin = 'round'
     context.lineWidth = 2
 
-    const paths = drawHistory.answers.canvas.paths
+    const paths = drawHistory?.answers.canvas.paths
     if (Array.isArray(paths)) {
       paths.forEach(path => {
         if (path && path.points) {
@@ -120,16 +126,25 @@ export default function Drawing() {
   const stopDrawing = async () => {
     if (currentPath.length > 1) {
       const newPath = { points: currentPath }
-      setDrawHistory(prev => ({
-        ...prev,
-        answers: {
-          ...prev.answers,
-          canvas: {
-            ...prev.answers.canvas,
-            paths: [...prev.answers.canvas.paths, newPath]
+      setDrawHistory(prev => {
+        if (!prev) return { 
+          answers: { 
+            userId, // userIdを追加
+            deliveryId, // deliveryIdを追加
+            canvas: { paths: [] } 
+          } 
+        } // デフォルト値を設定
+        return {
+          ...prev,
+          answers: {
+            ...prev.answers,
+            canvas: {
+              ...prev.answers.canvas,
+              paths: [...prev.answers.canvas.paths, newPath]
+            }
           }
         }
-      }))
+      })
       setRedoHistory([])
       await savePath(newPath)
     }
@@ -145,30 +160,38 @@ export default function Drawing() {
     if (!context) return
 
     context.clearRect(0, 0, canvas.width, canvas.height)
-    setDrawHistory({ answers: { canvas: { paths: [] } } })
+    setDrawHistory({ 
+      answers: { 
+        userId, // userIdを追加
+        deliveryId, // deliveryIdを追加
+        canvas: { paths: [] } 
+      } 
+    })
     setRedoHistory([])
     await clearAllPaths()
   }
 
   const undo = async () => {
-    if (drawHistory.answers.canvas.paths.length === 0) return
+    if (drawHistory?.answers.canvas.paths.length === 0) return
 
-    const lastPath = drawHistory.answers.canvas.paths[drawHistory.answers.canvas.paths.length - 1]
-    setRedoHistory(prev => [...prev, lastPath])
+    const lastPath = drawHistory?.answers.canvas.paths[drawHistory.answers.canvas.paths.length - 1]
+    if (lastPath) {
+      setRedoHistory(prev => [...prev, lastPath])
+    }
     setDrawHistory(prev => {
+      if (!prev) return prev;
       const newPaths = prev.answers.canvas.paths.slice(0, -1)
-      const newHistory = {
+      updatePaths(newPaths)
+      return {
         ...prev,
         answers: {
           ...prev.answers,
           canvas: {
             ...prev.answers.canvas,
-            paths: newPaths
+            paths: newPaths.length > 0 ? newPaths : []
           }
         }
       }
-      updatePaths(newPaths)
-      return newHistory
     })
   }
 
@@ -177,6 +200,7 @@ export default function Drawing() {
     
     const nextPath = redoHistory[redoHistory.length - 1]
     setDrawHistory(prev => {
+      if (!prev) return prev;
       const newPaths = [...prev.answers.canvas.paths, nextPath]
       const newHistory = {
         ...prev,
@@ -208,7 +232,7 @@ export default function Drawing() {
       />
       <div className="flex items-center justify-between w-full max-w-md">
         <div className="flex items-center space-x-2">
-          <Button onClick={undo} disabled={drawHistory.answers.canvas.paths.length === 0}>
+          <Button onClick={undo} disabled={drawHistory?.answers.canvas.paths.length === 0}>
             <Undo className="w-4 h-4 mr-2" />
             元に戻す
           </Button>

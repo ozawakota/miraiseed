@@ -59,7 +59,8 @@ export function useCanvasIndexedDB(deliveryId: string, userId: string) {
     return () => {
       if (db) db.close();
     };
-  }, [dbName, storeName]);
+  }, [db, storeName, deliveryId, userId]);
+
 
   /**
    * 新しい描画パスを保存する
@@ -84,7 +85,7 @@ export function useCanvasIndexedDB(deliveryId: string, userId: string) {
         putRequest.onsuccess = () => resolve();
       };
     });
-  }, [db, storeName]);
+  }, [db, storeName, deliveryId, userId]);
 
   /**
    * すべての描画パスを取得する
@@ -101,7 +102,7 @@ export function useCanvasIndexedDB(deliveryId: string, userId: string) {
       request.onerror = () => reject(new Error('Failed to get paths'));
       request.onsuccess = () => resolve(request.result || { answers: { deliveryId, userId, canvas: { paths: [] } } });
     });
-  }, [db, storeName]);
+  }, [db, storeName, deliveryId, userId]);
 
   /**
    * すべての描画パスをクリアする
@@ -118,7 +119,7 @@ export function useCanvasIndexedDB(deliveryId: string, userId: string) {
       request.onerror = () => reject(new Error('Failed to clear paths'));
       request.onsuccess = () => resolve();
     });
-  }, [db, storeName]);
+  }, [db, storeName ,deliveryId, userId]);
 
   /**
    * 描画パスを更新する
@@ -136,7 +137,7 @@ export function useCanvasIndexedDB(deliveryId: string, userId: string) {
       request.onerror = () => reject(new Error('Failed to update paths'));
       request.onsuccess = () => resolve();
     });
-  }, [db, storeName]);
+  }, [db, storeName, deliveryId, userId]);
 
   return { savePath, getAllPaths, clearAllPaths, updatePaths };
 }

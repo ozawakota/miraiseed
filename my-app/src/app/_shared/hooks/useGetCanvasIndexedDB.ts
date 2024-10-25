@@ -45,7 +45,7 @@ export function useGetCanvasIndexedDB() {
   };
 
   const fetchStoreContent = async (dbName: string, storeName: string) => {
-    return new Promise<any[]>((resolve, reject) => {
+    return new Promise<unknown[]>((resolve, reject) => {
       const request = indexedDB.open(dbName);
       request.onerror = () => reject(new Error(`Failed to open database: ${dbName}`));
       request.onsuccess = () => {
@@ -67,7 +67,7 @@ export function useGetCanvasIndexedDB() {
         ...prev,
         [dbName]: {
           ...prev[dbName],
-          [storeName]: content
+          [storeName]: content as unknown[]
         }
       }));
     } catch (err) {

@@ -4,5 +4,5 @@ export type DatabaseInfo = {
 };
 
 export type StoreContent = {
-  [key: string]: any;
+  [key: string]: string | number | boolean | unknown[];
 };

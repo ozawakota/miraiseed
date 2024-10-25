@@ -1,10 +1,10 @@
 'use client';
 
-import { useState, useRef, useCallback, useEffect, useMemo } from 'react';
+import { useState, useCallback, useEffect, useMemo } from 'react';
 import { Button } from "@/components/ui/button"
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
 import { useGetCanvasIndexedDB } from '../_shared/hooks/useGetCanvasIndexedDB';
-
+import Image from 'next/image';
 
 type GroupedDatabases = {
   [userId: string]: {
@@ -17,7 +17,8 @@ export default function CanvasIchiranPage() {
   const { databases, loading, error, storeContents, fetchDatabases, handleFetchStoreContent } = useGetCanvasIndexedDB();
   const [generatingImages, setGeneratingImages] = useState<{[key: string]: boolean}>({});
   const [generatedImages, setGeneratedImages] = useState<{[key: string]: string}>({});
-  const canvasRef = useRef<HTMLCanvasElement>(null);
+  // Remove this line
+  // const canvasRef = useRef<HTMLCanvasElement>(null);
 
   const getUserIdFromDbName = (dbName: string): string => {
     const parts = dbName.split('-');
@@ -37,7 +38,7 @@ export default function CanvasIchiranPage() {
     }, {} as GroupedDatabases);
   }, [databases]);
 
-  const drawPathsOnCanvas = useCallback((canvas: HTMLCanvasElement, paths: any[]) => {
+  const drawPathsOnCanvas = useCallback((canvas: HTMLCanvasElement, paths: { points: { x: number; y: number }[] }[]) => {
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
@@ -64,25 +65,22 @@ export default function CanvasIchiranPage() {
       const stores = storeContents[dbName];
       if (!stores) throw new Error('No stores found for this database');
 
+
       const storeWithCanvas = Object.values(stores).find(store => 
-        Array.isArray(store) && store.length > 0 && store[0].answers?.canvas
+        Array.isArray(store) && store.length > 0 && (store[0] as { answers?: { canvas?: { paths: { points: { x: number; y: number }[] }[] } } }).answers?.canvas
       );
 
       if (!storeWithCanvas || !Array.isArray(storeWithCanvas)) {
         throw new Error('No canvas data found');
       }
 
-      const canvasData = storeWithCanvas[0].answers.canvas;
+      const canvasData = (storeWithCanvas[0] as { answers: { canvas: { paths: { points: { x: number; y: number }[] }[] } } }).answers.canvas;
 
-      if (!canvasRef.current) {
-        throw new Error('Canvas element not found');
-      }
+      const canvas = document.createElement('canvas');
+      canvas.width = 200;
+      canvas.height = 200;
 
-      // Set canvas size
-      canvasRef.current.width = 200;
-      canvasRef.current.height = 200;
-
-      const ctx = canvasRef.current.getContext('2d');
+      const ctx = canvas.getContext('2d');
       if (ctx) {
         ctx.scale(0.5, 0.5);
         
@@ -94,11 +92,11 @@ export default function CanvasIchiranPage() {
           ctx.textBaseline = 'middle';
           ctx.fillText('答えなし', 200, 200);
         } else {
-          drawPathsOnCanvas(canvasRef.current, canvasData.paths);
+          drawPathsOnCanvas(canvas, canvasData.paths);
         }
       }
 
-      const imageDataUrl = canvasRef.current.toDataURL('image/png');
+      const imageDataUrl = canvas.toDataURL('image/png');
       setGeneratedImages(prev => ({ ...prev, [dbName]: imageDataUrl }));
     } catch (err) {
       console.error(`Failed to generate image for ${dbName}:`, err);
@@ -131,7 +129,7 @@ export default function CanvasIchiranPage() {
         
         <Button onClick={fetchDatabases} className="mb-4">データベース情報を更新</Button>
 
-        {loading && <p className='mb-4'>読み込み中...</p>}
+        {loading && <p>読み込み中...</p>}
         {error && <p className="text-red-500">{error}</p>}
 
         {Object.entries(groupedDatabases).map(([userId, userDatabases]) => (
@@ -140,13 +138,19 @@ export default function CanvasIchiranPage() {
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               {userDatabases.map((db) => (
                 db.name && (
-                  <div key={db.name} className="border rounded-lg p-4 bg-gray-200">
-                    <h3 className="text-2 font-semibold mb-2">{db.name}</h3>
+                  <div key={db.name} className="border rounded-lg p-4">
+                    <h3 className="text-lg font-semibold mb-2">{db.name}</h3>
                     {generatedImages[db.name] ? (
-                      <img src={generatedImages[db.name]} alt={`Generated Canvas for ${db.name}`} className="w-full border border-gray-300 bg-white" />
+                      <Image 
+                      src={generatedImages[db.name]} 
+                      alt={`Generated Canvas for ${db.name}`} 
+                      className="w-full border border-gray-300" 
+                      width={500} // 必要に応じて幅を指定
+                      height={500} // 必要に応じて高さを指定
+                    />
                     ) : (
                       <div className="w-full h-48 flex items-center justify-center bg-gray-100">
-                        {generatingImages[db.name] ? '生成中...' : '答えなし'}
+                        {generatingImages[db.name] ? '生成中...' : '画像なし'}
                       </div>
                     )}
                   </div>
@@ -156,7 +160,8 @@ export default function CanvasIchiranPage() {
           </div>
         ))}
 
-        <canvas ref={canvasRef} style={{ display: 'none' }} />
+        {/* Remove this line */}
+        {/* <canvas ref={canvasRef} style={{ display: 'none' }} /> */}
 
         {databases.length > 0 && (
           <Accordion type="single" collapsible className="w-full mt-4">
@@ -176,7 +181,7 @@ export default function CanvasIchiranPage() {
                         </Button>
                         {storeContents[db.name]?.[store] && (
                           <pre className="mt-2 p-2 bg-gray-100 rounded overflow-auto max-h-40">
-                            {JSON.stringify(storeContents[db.name][store], null, 2)}
+                           {JSON.stringify(storeContents[db.name][store], null, 2) as string}
                           </pre>
                         )}
                       </li>
