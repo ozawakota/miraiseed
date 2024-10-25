@@ -59,7 +59,7 @@ export function useCanvasIndexedDB(deliveryId: string, userId: string) {
     return () => {
       if (db) db.close();
     };
-  });
+    }, [db, storeName, deliveryId, userId]);
 
 
   /**
