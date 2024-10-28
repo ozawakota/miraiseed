@@ -11,8 +11,8 @@ export const productSchema = z
         message: "有効期限は未来の日付にしなければいけません"
       }),
   })
-  .strict()
-  .brand<"Product">();
+  // .strict()
+  // .brand<"Product">();
   ;
 
 
