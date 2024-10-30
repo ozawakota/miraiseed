@@ -17,19 +17,17 @@ export default function ProductPage() {
     sku: "ABC-1234",
     price: 50,
     expirationDate: "2026-01-01",
-    // color: "red"
+    color: "red"
   });
 
   // パースしたものを関数に渡す
   somethingProduct(parsed);
 
   // somethingProduct({
-  //   sku: "ABC-1234",
+  //   sku: "1234",
   //   price: -50,
-  //   expirationDate: "2026-01-01",
+  //   expirationDate: "2020-01-01",
   // })
-
-
 
 
   return(
