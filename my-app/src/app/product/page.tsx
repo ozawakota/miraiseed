@@ -24,9 +24,9 @@ export default function ProductPage() {
   somethingProduct(parsed);
 
   // somethingProduct({
-  //   sku: "1234",
-  //   price: -50,
-  //   expirationDate: "2020-01-01",
+    // sku: "1234",
+    // price: -50,
+    // expirationDate: "2020-01-01",
   // })
 
 

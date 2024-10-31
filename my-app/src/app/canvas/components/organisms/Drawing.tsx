@@ -57,7 +57,12 @@ export default function Drawing() {
         }
       })
     }
-  }, [drawHistory])
+
+    // 現在描画中のパスも描画
+    if (currentPath.length > 1) {
+      drawSmoothPath(context, currentPath)
+    }
+  }, [drawHistory, currentPath])
 
   const drawSmoothPath = (context: CanvasRenderingContext2D, points: Array<{ x: number; y: number }>) => {
     if (points.length < 2) return
@@ -71,12 +76,16 @@ export default function Drawing() {
       context.quadraticCurveTo(points[i].x, points[i].y, xc, yc)
     }
 
-    context.quadraticCurveTo(
-      points[points.length - 2].x,
-      points[points.length - 2].y,
-      points[points.length - 1].x,
-      points[points.length - 1].y
-    )
+    if (points.length > 2) {
+      context.quadraticCurveTo(
+        points[points.length - 2].x,
+        points[points.length - 2].y,
+        points[points.length - 1].x,
+        points[points.length - 1].y
+      )
+    } else {
+      context.lineTo(points[points.length - 1].x, points[points.length - 1].y)
+    }
 
     context.stroke()
   }
@@ -97,30 +106,18 @@ export default function Drawing() {
     setIsDrawing(true)
   }
 
-  const draw = async (e: React.MouseEvent<HTMLCanvasElement>) => {
+  const draw = (e: React.MouseEvent<HTMLCanvasElement>) => {
     if (!isDrawing) return
 
     const canvas = canvasRef.current
     if (!canvas) return
 
-    const context = canvas.getContext('2d')
-    if (!context) return
-
     const rect = canvas.getBoundingClientRect()
     const x = e.clientX - rect.left
     const y = e.clientY - rect.top
 
-    setCurrentPath(prev => {
-      const newPath = [...prev, { x, y }]
-      
-      if (newPath.length > 1) {
-        context.clearRect(0, 0, canvas.width, canvas.height)
-        drawCanvas()
-        drawSmoothPath(context, newPath)
-      }
-
-      return newPath
-    })
+    setCurrentPath(prev => [...prev, { x, y }])
+    drawCanvas() // 現在のパスを含めて再描画
   }
 
   const stopDrawing = async () => {
@@ -129,11 +126,11 @@ export default function Drawing() {
       setDrawHistory(prev => {
         if (!prev) return { 
           answers: { 
-            userId, // userIdを追加
-            deliveryId, // deliveryIdを追加
+            userId,
+            deliveryId,
             canvas: { paths: [] } 
           } 
-        } // デフォルト値を設定
+        }
         return {
           ...prev,
           answers: {
