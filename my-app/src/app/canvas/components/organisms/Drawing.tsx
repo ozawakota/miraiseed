@@ -131,16 +131,17 @@ export default function Drawing() {
     const x = e.clientX - rect.left
     const y = e.clientY - rect.top
 
-    setCurrentPath(prev => {
-      const newPath = [...prev, { x, y }]
-      return newPath.slice(-1000) // 最新の1000ポイントのみを保持
-    })
+    setCurrentPath(prev => [...prev, { x, y }])
     drawCanvas()
   }
 
   const stopDrawing = async () => {
     if (currentPath.length > 1) {
-      const limitedPath = currentPath.slice(0, 1000) // 1000ポイントまでに制限
+      let limitedPath = currentPath
+      if (currentPath.length > 1000) {
+        const step = Math.floor(currentPath.length / 1000)
+        limitedPath = currentPath.filter((_, index) => index % step === 0).slice(0, 1000)
+      }
       const newPath = { points: limitedPath }
       setDrawHistory(prev => {
         if (!prev) return { 
@@ -234,6 +235,7 @@ export default function Drawing() {
     setRedoHistory(prev => prev.slice(0, -1))
   }
 
+  
   return (
     <div className="flex flex-col items-center space-y-4 p-4">
       <canvas
