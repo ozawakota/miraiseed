@@ -22,15 +22,28 @@ export default function Drawing() {
   useEffect(() => {
     const loadPaths = async () => {
       const storedPaths = await getAllPaths()
-      setDrawHistory(storedPaths.answers && storedPaths.answers.canvas && Array.isArray(storedPaths.answers.canvas.paths)
-        ? storedPaths
+      const limitedPaths = storedPaths.answers && storedPaths.answers.canvas && Array.isArray(storedPaths.answers.canvas.paths)
+        ? {
+            ...storedPaths,
+            answers: {
+              ...storedPaths.answers,
+              canvas: {
+                ...storedPaths.answers.canvas,
+                paths: storedPaths.answers.canvas.paths.map(path => ({
+                  ...path,
+                  points: path.points.slice(0, 1000)
+                }))
+              }
+            }
+          }
         : { 
-          answers: { 
-            userId,
-            deliveryId,
-            canvas: { paths: [] } 
-          } 
-        } as DrawAction)
+            answers: { 
+              userId,
+              deliveryId,
+              canvas: { paths: [] } 
+            } 
+          } as DrawAction
+      setDrawHistory(limitedPaths)
     }
     loadPaths()
   }, [getAllPaths, deliveryId, userId])
@@ -51,15 +64,17 @@ export default function Drawing() {
 
     const paths = drawHistory?.answers.canvas.paths
     if (Array.isArray(paths)) {
-      paths.forEach(path => {
+      paths.forEach((path, index) => {
         if (path && path.points) {
+          console.log(`Path ${index + 1} points length: ${path.points.length}`)
           drawSmoothPath(context, path.points)
         }
       })
     }
 
-    // 現在描画中のパスも描画
+    // 現在描画中のパスも描画し、長さをログに出力
     if (currentPath.length > 1) {
+      console.log(`Current path points length: ${currentPath.length}`)
       drawSmoothPath(context, currentPath)
     }
   }, [drawHistory, currentPath])
@@ -116,13 +131,17 @@ export default function Drawing() {
     const x = e.clientX - rect.left
     const y = e.clientY - rect.top
 
-    setCurrentPath(prev => [...prev, { x, y }])
-    drawCanvas() // 現在のパスを含めて再描画
+    setCurrentPath(prev => {
+      const newPath = [...prev, { x, y }]
+      return newPath.slice(-1000) // 最新の1000ポイントのみを保持
+    })
+    drawCanvas()
   }
 
   const stopDrawing = async () => {
     if (currentPath.length > 1) {
-      const newPath = { points: currentPath }
+      const limitedPath = currentPath.slice(0, 1000) // 1000ポイントまでに制限
+      const newPath = { points: limitedPath }
       setDrawHistory(prev => {
         if (!prev) return { 
           answers: { 
@@ -159,8 +178,8 @@ export default function Drawing() {
     context.clearRect(0, 0, canvas.width, canvas.height)
     setDrawHistory({ 
       answers: { 
-        userId, // userIdを追加
-        deliveryId, // deliveryIdを追加
+        userId,
+        deliveryId,
         canvas: { paths: [] } 
       } 
     })
