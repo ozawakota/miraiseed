@@ -6,19 +6,83 @@ import { Button } from "@/components/ui/button"
 import { Undo, Redo, Trash2 } from 'lucide-react'
 import { useCanvasIndexedDB, DrawAction } from '../../../_shared/hooks/useCanvasIndexedDB'
 
+/**
+ * キャンバスベースの描画アプリケーションのDrawingコンポーネント。
+ * このコンポーネントは、ユーザーがブラウザ上でインタラクティブに絵を描くことができる機能を提供します。
+ * 主な機能には以下が含まれます：
+ * - マウスを使用したフリーハンド描画
+ * - 描画のアンドゥ（元に戻す）とリドゥ（やり直し）
+ * - キャンバスのクリア
+ * - IndexedDBを使用した描画データの永続化
+ * 
+ * このコンポーネントは、Next.jsのApp Routerと互換性があり、クライアントサイドでのみ動作します。
+ *
+ * @returns {JSX.Element} レンダリングされたDrawingコンポーネント
+ */
 export default function Drawing() {
+  /**
+   * キャンバス要素への参照
+   * @type {React.RefObject<HTMLCanvasElement>}
+   */
   const canvasRef = useRef<HTMLCanvasElement>(null)
+
+  /**
+   * ユーザーが現在描画中かどうかを追跡する状態
+   * @type {boolean}
+   */
   const [isDrawing, setIsDrawing] = useState(false)
+
+  /**
+   * 描画履歴を保存する状態
+   * この状態は、ユーザーのすべての描画アクションを追跡し、アンドゥ/リドゥ機能を可能にします
+   * @type {DrawAction | undefined}
+   */
   const [drawHistory, setDrawHistory] = useState<DrawAction>()
+
+  /**
+   * やり直し履歴を保存する状態
+   * この状態は、アンドゥされたアクションを追跡し、リドゥ機能を可能にします
+   * @type {Array<{ points: Array<{ x: number; y: number }> }>}
+   */
   const [redoHistory, setRedoHistory] = useState<Array<{ points: Array<{ x: number; y: number }> }>>([])
+
+  /**
+   * 現在の描画パスを保存する状態
+   * この状態は、ユーザーが現在描画中のパスのポイントを追跡します
+   * @type {Array<{ x: number; y: number }>}
+   */
   const [currentPath, setCurrentPath] = useState<{ x: number; y: number }[]>([])
 
+  /**
+   * URLから検索パラメータを取得
+   * @type {ReadonlyURLSearchParams}
+   */
   const searchParams = useSearchParams()
+
+  /**
+   * 検索パラメータからdeliveryIdを取得、または'default'を使用
+   * このIDは、IndexedDBでの保存に使用されます
+   * @type {string}
+   */
   const deliveryId = searchParams.get('deliveryId') || 'default'
+
+  /**
+   * 検索パラメータからuserIdを取得、または'default'を使用
+   * このIDは、IndexedDBでの保存に使用されます
+   * @type {string}
+   */
   const userId = searchParams.get('userId') || 'default'
 
+  /**
+   * IndexedDB操作のためのカスタムフック
+   * このフックは、描画データの保存、取得、更新、削除の機能を提供します
+   */
   const { savePath, getAllPaths, clearAllPaths, updatePaths } = useCanvasIndexedDB(deliveryId, userId)
 
+  /**
+   * コンポーネントがマウントされたときにIndexedDBから保存されたパスを読み込むためのエフェクトフック
+   * このフックは、ページがロードされたときに以前の描画を復元します
+   */
   useEffect(() => {
     const loadPaths = async () => {
       const storedPaths = await getAllPaths()
@@ -48,6 +112,10 @@ export default function Drawing() {
     loadPaths()
   }, [getAllPaths, deliveryId, userId])
 
+  /**
+   * キャンバス上にすべてのパスを描画するコールバック関数
+   * この関数は、現在の描画履歴と現在のパスに基づいてキャンバスを更新します
+   */
   const drawCanvas = useCallback(() => {
     const canvas = canvasRef.current
     if (!canvas) return
@@ -66,19 +134,25 @@ export default function Drawing() {
     if (Array.isArray(paths)) {
       paths.forEach((path, index) => {
         if (path && path.points) {
-          console.log(`Path ${index + 1} points length: ${path.points.length}`)
+          console.log(`パス ${index + 1} のポイント数: ${path.points.length}`)
           drawSmoothPath(context, path.points)
         }
       })
     }
 
-    // 現在描画中のパスも描画し、長さをログに出力
+    // 現在のパスを描画し、その長さをログに出力
     if (currentPath.length > 1) {
-      console.log(`Current path points length: ${currentPath.length}`)
+      console.log(`現在のパスのポイント数: ${currentPath.length}`)
       drawSmoothPath(context, currentPath)
     }
   }, [drawHistory, currentPath])
 
+  /**
+   * キャンバス上に滑らかなパスを描画する関数
+   * この関数は、与えられたポイントを使用して、スムーズな曲線を描画します
+   * @param {CanvasRenderingContext2D} context - キャンバスの2D描画コンテキスト
+   * @param {Array<{x: number, y: number}>} points - 描画するポイントの配列
+   */
   const drawSmoothPath = (context: CanvasRenderingContext2D, points: Array<{ x: number; y: number }>) => {
     if (points.length < 2) return
 
@@ -105,10 +179,19 @@ export default function Drawing() {
     context.stroke()
   }
 
+  /**
+   * drawCanvas関数が変更されたときにキャンバスを再描画するためのエフェクトフック
+   * このフックは、描画履歴や現在のパスが変更されるたびにキャンバスを更新します
+   */
   useEffect(() => {
     drawCanvas()
   }, [drawCanvas])
 
+  /**
+   * マウスが押されたときに描画を開始する関数
+   * この関数は、新しいパスの開始点を設定し、描画状態をtrueに設定します
+   * @param {React.MouseEvent<HTMLCanvasElement>} e - マウスイベント
+   */
   const startDrawing = (e: React.MouseEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current
     if (!canvas) return
@@ -121,6 +204,11 @@ export default function Drawing() {
     setIsDrawing(true)
   }
 
+  /**
+   * マウスが移動するにつれて描画を続ける関数
+   * この関数は、現在のパスに新しいポイントを追加し、キャンバスを更新します
+   * @param {React.MouseEvent<HTMLCanvasElement>} e - マウスイベント
+   */
   const draw = (e: React.MouseEvent<HTMLCanvasElement>) => {
     if (!isDrawing) return
 
@@ -135,6 +223,10 @@ export default function Drawing() {
     drawCanvas()
   }
 
+  /**
+   * マウスが離されたかキャンバスから出たときに描画を停止する関数
+   * この関数は、現在のパスを描画履歴に追加し、IndexedDBに保存します
+   */
   const stopDrawing = async () => {
     if (currentPath.length > 1) {
       let limitedPath = currentPath
@@ -151,7 +243,7 @@ export default function Drawing() {
             canvas: { paths: [] } 
           } 
         }
-        return {
+        const updatedHistory = {
           ...prev,
           answers: {
             ...prev.answers,
@@ -160,7 +252,9 @@ export default function Drawing() {
               paths: [...prev.answers.canvas.paths, newPath]
             }
           }
-        }
+        };
+        console.log('更新された描画履歴:', updatedHistory);
+        return updatedHistory;
       })
       setRedoHistory([])
       await savePath(newPath)
@@ -169,6 +263,10 @@ export default function Drawing() {
     setIsDrawing(false)
   }
 
+  /**
+   * キャンバス全体をクリアする関数
+   * この関数は、キャンバスをクリアし、描画履歴とやり直し履歴をリセットします
+   */
   const clearCanvas = async () => {
     const canvas = canvasRef.current
     if (!canvas) return
@@ -188,6 +286,10 @@ export default function Drawing() {
     await clearAllPaths()
   }
 
+  /**
+   * 最後の描画アクションを元に戻す関数
+   * この関数は、描画履歴から最後のパスを削除し、やり直し履歴に追加します
+   */
   const undo = async () => {
     if (drawHistory?.answers.canvas.paths.length === 0) return
 
@@ -212,6 +314,10 @@ export default function Drawing() {
     })
   }
 
+  /**
+   * 最後に元に戻したアクションをやり直す関数
+   * この関数は、やり直し履歴から最後のパスを取り出し、描画履歴に追加します
+   */
   const redo = async () => {
     if (redoHistory.length === 0) return
     
@@ -235,7 +341,6 @@ export default function Drawing() {
     setRedoHistory(prev => prev.slice(0, -1))
   }
 
-  
   return (
     <div className="flex flex-col items-center space-y-4 p-4">
       <canvas
@@ -255,7 +360,7 @@ export default function Drawing() {
             元に戻す
           </Button>
           <Button onClick={redo} disabled={redoHistory.length === 0}>
-            <Redo className="w-4 h-4 mr-2" />
+            <Redo className="w-4 h-4 mr-2"   />
             やり直す
           </Button>
         </div>
